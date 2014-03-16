@@ -58,7 +58,8 @@ void setup() {
   // Setup MidiBus
   MidiBus.list();
   mb = new MidiBus(this, -1, MIDI_PORT_OUT);
-  //mb.sendTimestamps();
+  mb.sendTimestamps();
+
 }
 
 void draw() {
@@ -68,6 +69,9 @@ void draw() {
     }
     else if (lastKey == '2') {
       playTestTwo();
+    }
+    else if (lastKey == '3') {
+      playTestThree();
     }
     else {
       playTestOne();
@@ -115,6 +119,9 @@ void keyPressed() {
         else if (lastKey == '2') {
           setupTestTwo();
         }
+        else if (lastKey == '3') {
+          setupTestThree();
+        }
         else {
           setupTestOne();
         }
@@ -140,7 +147,6 @@ void keyReleased() {
 * tracks[0] = a randomly generated melody, based on C pentatonic scale
 * tracks[1] = a randomly assigned chord, component notes fit the C pentatonic scale
 * tracks[2] = a bass track, uses the same roon note assigned to the tracks[1] chord
-* tracks[3] = null
 */
 void setupTestOne() {
   // Set the BPM
@@ -186,15 +192,19 @@ void playTestOne() {
 }
 
 /*
-* Test Two - 4/4 time, 120 BPM, F and C pentatonic scales
+* Test Two - 4/4 time, 120 BPM, F pentatonic scale
 *
 * beat = a repeating 2 measure groove
+* tracks[0] = bass track, generative, slower moving than main melody
+* tracks[1] = main melody, generative, faster than bass track
 */
 void setupTestTwo() {
   // Set the BPM
   BPM = 120;
   last = 0;
   last2 = 0;
+  interval = intervals[(int) random(0, 2)];
+  interval2 = intervals[(int) random(1, 3)];
   // Setup the beat
   beat = new RiriSequence();
   beat.addNote(channel1, 36, 100, beatsToMils(1.5));
@@ -212,26 +222,84 @@ void setupTestTwo() {
   pitch2 = 0;
   tracks[1] = new RiriSequence();
   tracks[1].addNote(channel2, pitchesInF[pitch2], 100, beatsToMils(1));
+  tracks[2] = new RiriSequence();
+  tracks[2].addRest(channel3, beatsToMils(1));
 }
 
 void playTestTwo() {
   if (playing) {
     // Add the next bass note
-    if (millis() > last + interval/2) {
-      last = millis();
+    if (millis() > last + beatsToMils(interval) - 10) {
       interval = intervals[(int) random(0, 2)];
       pitch = pitch + (int) random(-2, 2);
       if (pitch >= pitchesInF.length || pitch < 0) {
         pitch = 0;
       }
       tracks[0].addNote(channel4, pitchesInF[pitch] - 36, 100, beatsToMils(interval));
+      last = millis();
     }
     // Add the next treble note
-    if (millis() > last2 + interval2/2) {
-      last2 = millis();
+    if (millis() > last2 + beatsToMils(interval2) - 10) {
       interval2 = intervals[(int) random(1, 3)];
       pitch2 = (int) random(0, pitchesInF.length);
       tracks[1].addNote(channel2, pitchesInF[pitch2], 100, beatsToMils(interval2));
+      if (mouseY < height / 2) {
+        println("sure");
+        int p3 = (pitch2 + 2) % pitchesInF.length;
+        tracks[2].addNote(channel3, pitchesInF[p3], 100, beatsToMils(interval2));
+      }
+      else {
+        println("nah");
+        tracks[2].addRest(channel3, beatsToMils(interval2));
+      }
+      last2 = millis();
+    }
+  }
+}
+
+/*
+* Test Three - Change the pitch of notes within a sequence
+*
+* beat = repeating bass note, 16th notes, pitch changes every two beats
+* tracks[0] = melody, half measure pattern, first note matches beat pitch
+* tracks[1] = chords, root matches beat pitch
+*/
+void setupTestThree() {
+  // Set the BPM
+  BPM = 80;
+  last = millis();
+  last2 = 0;
+  // Setup the beat
+  beat = new RiriSequence();
+  beat.addNote(channel4, pitchesInC[0] - 36, 100, beatsToMils(.125));
+  beat.addRest(channel4, beatsToMils(.125));
+  beat.infinite(true);
+  // Setup the tracks
+  tracks[0] = new RiriSequence();
+  tracks[0].addNote(channel2, pitchesInC[0], 100, beatsToMils(4));
+  tracks[1] = new RiriSequence();
+  tracks[1].addNote(channel3, pitchesInC[0] - 12, 100, beatsToMils(4));
+}
+
+void playTestThree() {
+  if (playing) {
+    if (millis() > last + beatsToMils(2) - 10) {
+      last = millis();
+      // Update the beat's pitch
+      int p = pitchesInC[(int) random(0, pitchesInC.length)];
+      RiriNote tmp = (RiriNote) beat.notes().get(0);
+      tmp.pitch = p - 36;
+      // Update the tracks to match the beat
+      tracks[0].addNote(channel2, p, 100, beatsToMils(.75));
+      tracks[0].addNote(channel2, pitchesInC[2], 100, beatsToMils(.25));
+      tracks[0].addNote(channel2, pitchesInC[1], 100, beatsToMils(.25));
+      tracks[0].addNote(channel2, pitchesInC[0], 100, beatsToMils(.75));
+      RiriChord c = new RiriChord();
+      int p2 = p % pitchesInC.length;
+      int p3 = (p2 + 2) % pitchesInC.length;
+      c.addNote(channel3, pitchesInC[p2] - 12, 100, beatsToMils(2));
+      c.addNote(channel3, pitchesInC[p3] - 12, 100, beatsToMils(2));
+      tracks[1].addChord(c);
     }
   }
 }
