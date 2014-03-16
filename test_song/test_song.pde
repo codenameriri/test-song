@@ -58,7 +58,8 @@ void setup() {
   // Setup MidiBus
   MidiBus.list();
   mb = new MidiBus(this, -1, MIDI_PORT_OUT);
-  //mb.sendTimestamps();
+  mb.sendTimestamps();
+
 }
 
 void draw() {
@@ -202,6 +203,8 @@ void setupTestTwo() {
   BPM = 120;
   last = 0;
   last2 = 0;
+  interval = intervals[(int) random(0, 2)];
+  interval2 = intervals[(int) random(1, 3)];
   // Setup the beat
   beat = new RiriSequence();
   beat.addNote(channel1, 36, 100, beatsToMils(1.5));
@@ -219,26 +222,37 @@ void setupTestTwo() {
   pitch2 = 0;
   tracks[1] = new RiriSequence();
   tracks[1].addNote(channel2, pitchesInF[pitch2], 100, beatsToMils(1));
+  tracks[2] = new RiriSequence();
+  tracks[2].addRest(channel3, beatsToMils(1));
 }
 
 void playTestTwo() {
   if (playing) {
     // Add the next bass note
-    if (millis() > last + interval/2) {
-      last = millis();
+    if (millis() > last + beatsToMils(interval) - 10) {
       interval = intervals[(int) random(0, 2)];
       pitch = pitch + (int) random(-2, 2);
       if (pitch >= pitchesInF.length || pitch < 0) {
         pitch = 0;
       }
       tracks[0].addNote(channel4, pitchesInF[pitch] - 36, 100, beatsToMils(interval));
+      last = millis();
     }
     // Add the next treble note
-    if (millis() > last2 + interval2/2) {
-      last2 = millis();
+    if (millis() > last2 + beatsToMils(interval2) - 10) {
       interval2 = intervals[(int) random(1, 3)];
       pitch2 = (int) random(0, pitchesInF.length);
       tracks[1].addNote(channel2, pitchesInF[pitch2], 100, beatsToMils(interval2));
+      if (mouseY < height / 2) {
+        println("sure");
+        int p3 = (pitch2 + 2) % pitchesInF.length;
+        tracks[2].addNote(channel3, pitchesInF[p3], 100, beatsToMils(interval2));
+      }
+      else {
+        println("nah");
+        tracks[2].addRest(channel3, beatsToMils(interval2));
+      }
+      last2 = millis();
     }
   }
 }
@@ -246,7 +260,9 @@ void playTestTwo() {
 /*
 * Test Three - Change the pitch of notes within a sequence
 *
-*
+* beat = repeating bass note, 16th notes, pitch changes every two beats
+* tracks[0] = melody, half measure pattern, first note matches beat pitch
+* tracks[1] = chords, root matches beat pitch
 */
 void setupTestThree() {
   // Set the BPM
@@ -267,13 +283,13 @@ void setupTestThree() {
 
 void playTestThree() {
   if (playing) {
-    if (millis() > last + beatsToMils(2)) {
+    if (millis() > last + beatsToMils(2) - 10) {
       last = millis();
       // Update the beat's pitch
       int p = pitchesInC[(int) random(0, pitchesInC.length)];
       RiriNote tmp = (RiriNote) beat.notes().get(0);
       tmp.pitch = p - 36;
-      // Update the tracks to match
+      // Update the tracks to match the beat
       tracks[0].addNote(channel2, p, 100, beatsToMils(.75));
       tracks[0].addNote(channel2, pitchesInC[2], 100, beatsToMils(.25));
       tracks[0].addNote(channel2, pitchesInC[1], 100, beatsToMils(.25));
